@@ -1,34 +1,38 @@
 const express = require("express");
 const app = express();
 const errors = require("restify-errors");
-const config = require("./config/config");
 const morgan = require("morgan");
 const cors = require("cors");
 const bodyparser = require("body-parser");
-const mysql = require("mysql");
+
+//Import Schemas for Route Usage
+const userRoutes = require("./routes/user");
 
 //Middlewares
-app.use(bodyparser.urlencoded({ extended: false }));
 app.use(morgan("dev"));
+app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 
 //Handle CORS
-app.use(cors);
+app.use(cors());
 
-//Setup MySql
-const db = mysql.createConnection({
-  host: "127.0.0.1",
-  user: "root",
-  password: config.MySQL_Password,
-  database: "simplefintech",
+//Use Routes
+app.use("/users", userRoutes);
+
+//Default Error Handling
+app.use((req, res, next) => {
+  const error = new Error("Not found");
+  error.status = 404;
+  next(error);
 });
 
-//Connect to MySQL Database
-db.connect((err) => {
-  if (err) {
-    return new errors.InternalServerError("Could Not Connect To Database");
-  }
-  console.log("Server Connected Successfully");
+app.use((error, req, res, next) => {
+  res.status(error.status || 500);
+  res.json({
+    error: {
+      message: error.message,
+    },
+  });
 });
 
 module.exports = app;
