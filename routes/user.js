@@ -7,15 +7,7 @@ const errors = require("restify-errors");
 const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
-
-//Setup MySql
-const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  port: "3306",
-  password: config.MySQL_Password,
-  database: "simple_fintech",
-});
+const db = require("../controllers/db");
 
 //Signup New User
 router.post("/signup", (req, res, next) => {
@@ -33,7 +25,7 @@ router.post("/signup", (req, res, next) => {
         withdrawal_bank: "Not set",
       });
       let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.name}', '${user.password}', '${user.name}', '${user.email}', '${user.accountn_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}')`;
-      pool.execute(sql, (err, result) => {
+      db.execute(sql, (err, result) => {
         if ((err, result)) {
           if (err) {
             res.status(201).json({
