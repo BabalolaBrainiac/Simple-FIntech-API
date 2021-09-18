@@ -7,6 +7,7 @@ const bodyparser = require("body-parser");
 
 //Import Schemas for Route Usage
 const userRoutes = require("./routes/user");
+const trnsRoutes = require("./routes/transaction");
 
 //Middlewares
 app.use(morgan("dev"));
@@ -18,6 +19,7 @@ app.use(cors());
 
 //Use Routes
 app.use("/users", userRoutes);
+app.use("/transaction", trnsRoutes);
 
 //Default Error Handling
 app.use((req, res, next) => {
