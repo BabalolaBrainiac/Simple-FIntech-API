@@ -33,7 +33,6 @@
     "mysql2": "^2.3.0",
     "nanoid": "^3.1.25",
     "nodemon": "^2.0.12",
-    "paystack": "^2.0.1",
     "random-string": "^0.2.0",
     "restify-errors": "^8.0.2"
   }

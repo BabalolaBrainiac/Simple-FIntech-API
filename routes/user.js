@@ -4,10 +4,9 @@ const User = require("../models/user");
 const mongoose = require("mongoose");
 const config = require("../config/config");
 const errors = require("restify-errors");
-const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
-const db = require("../controllers/db");
+const pool = require("../controllers/db");
 
 //Signup New User
 router.post("/signup", (req, res, next) => {
@@ -24,8 +23,9 @@ router.post("/signup", (req, res, next) => {
         account_id: nanoid(),
         withdrawal_bank: "Not set",
       });
-      let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.name}', '${user.password}', '${user.name}', '${user.email}', '${user.accountn_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}')`;
-      db.execute(sql, (err, result) => {
+      let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.name}', '${user.password}', '${user.name}', '${user.email}', '${user.accountn_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}');
+      `;
+      pool.execute(sql, (err, result) => {
         if ((err, result)) {
           if (err) {
             res.status(201).json({
@@ -41,30 +41,24 @@ router.post("/signup", (req, res, next) => {
   });
 });
 
-//Fetch Users From Database
-router.get("/getusers", (req, res, next) => {
-  User.find();
-  let sql = "SELECT * from users";
-  pool.execute(sql, (err, users) => {
+//Set Transaction/Transfer Security Code
+router.post("/setpin", (req, res, next) => {
+  const user = ({ email, pin } = req.body);
+  bcrypt.hash(user.pin, 5, (err, hash) => {
     if (err) {
-      res.status(500).json("Unable to retrieve Users");
+      console.log(err);
     } else {
-      console.log(users);
-      res.status(200).json("Users Successfully Retrieved");
-    }
-  });
-});
-
-//Fetch Specific User
-router.post("/:user_id", (req, res, next) => {
-  let id = req.params.user_id;
-  const sql = `SELECT * FROM users WHERE user_id = ${id}`;
-  pool.execute(sql, (err, user) => {
-    if (err) {
-      return new errors.ResourceNotFoundError("User Not Found");
-    } else {
-      console.log(user);
-      res.status(200).json("User Successfully Retrieved");
+      let sql = `UPDATE users SET transfer_secret_code = ('${hash}') WHERE (email = '${user.email}')`;
+      pool.execute(sql, (err, pin) => {
+        if (err) {
+          throw err;
+        } else {
+          console.log(pin);
+          res
+            .status(200)
+            .json("Transaction Security Code Successfully Created");
+        }
+      });
     }
   });
 });

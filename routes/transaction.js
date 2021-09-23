@@ -1,57 +1,211 @@
 const express = require("express");
+const {
+  initializeTransaction,
+  verifyPayment,
+} = require("../controllers/paystack");
 const router = express.Router();
-import { initializeTransaction, verifyPayment } from "../controllers/paystack";
-import transaction from "../models/transaction";
 const Transaction = require("../models/transaction");
-const User = require("../models/user");
-const Send = require("../models/send");
 const errors = require("restify-errors");
 const mongoose = require("mongoose");
-const db = require("../controllers/db");
+const pool = require("../controllers/db");
 
 //Fund Account using Paystack
 router.post("/fund", async (req, res, next) => {
-  const form = {
+  const data = {
     email: req.body.email,
     amount: req.body.amount,
     ref: new mongoose.Types.ObjectId(),
   };
 
-  //create a minimum fundable amount
-  if (parseInt(form.amount) < 200) {
-    throw new errors.InternalServerError("Minimum amount you can fund is N200");
-  }
-
-  //initiate paystack transaction
-  const payData = {
-    amount: form.amount,
-    email: form.email,
-    ref: form.ref,
+  //Initialize Transaction with paystack
+  const form = {
+    amount: data.amount * 100,
+    email: data.email,
+    reference: data.ref,
   };
 
-  let paystackResponse = await initializeTransaction(payData);
+  let paystackResponse = await initializeTransaction(form);
 
-  //create and log transaction to DB
+  //create new transaction with form data
   const transaction_data = new Transaction({
-    userId: req.body._id,
-    value: form.amount,
+    transaction_id: data.ref,
+    amount: data.amount,
     medium: "paystack",
-    status: "Transaction Pending",
+    userId: req.body._id,
     date: new Date(),
+    status: "Transaction Pending",
+    type: "Credit",
   });
 
-  //log new transaction to database
-  let sql = `INSERT INTO transactions VALUES('${transaction_data.userId}', '${transaction_data.value}', '${transaction_data.medium}', '${transaction_data.status}', '${transaction_data.date}')`;
-  await db.execute(sql, (err, result) => {
+  //log new transaction to DB
+  let sql = `INSERT INTO transactions VALUES('${transaction_data.transaction_id}', '${transaction_data.amount}', '${transaction_data.medium}', '${transaction_data.userId}', '${transaction_data.date}', '${transaction_data.status}')`;
+  await pool.execute(sql, (err, result) => {
     if (err) {
-      throw new errors.InternalServerError("User could not be saved to DB");
+      return new errors.InternalServerError("User could not be saved to DB");
+    } else {
+      console.log(result);
+      res.status(200).json("Transaction Saved to DB Successfully");
     }
-    return result;
   });
 
-  //redirect user after transaction
+  //redirect user after transaction has been logged to DB
   if (paystackResponse)
     res.redirect(301, paystackResponse.data.authorization_url);
+});
+
+//Verify payment before funding user
+router.get("/verify", async (req, res, next) => {
+  const transaction_id = req.body.transaction_id;
+
+  const response = await verifyPayment(transaction_id);
+  //Update Transaction in DB after verification
+
+  let sql = `
+  UPDATE transactions SET status = '${response.data.status}', medium = '${response.data.channel}', date = '${response.data.date}'
+  WHERE transaction_id = '${transaction_id}'`;
+  await pool.execute(sql, (err, result) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log(result);
+      res.status(200).json("Transaction Update Successful");
+    }
+  });
+
+  //Fund User Account if Transaction is Successful
+  if ((response.data.status = "success")) {
+    let sql = `
+    UPDATE users SET users.account_balance = (users.account_balance + '${response.data.amount}') 
+    WHERE transactions.transaction_id = '${transaction_id}'
+    JOIN transactions ON transactions.user_id = users.user_id;
+    `;
+    await pool.execute(sql, (err, result) => {
+      if (err) {
+        throw err;
+      } else console.log(result);
+      res
+        .status(200)
+        .json(
+          "Your account has been funded with" + response.data.amount + "Naira"
+        );
+    });
+  } else {
+    throw err;
+  }
+});
+
+//Send Money to other users using email
+router.post("/send", (req, res, next) => {
+  const transactionPayload = ({ sender, receiver, amount, description } =
+    req.body);
+
+  //Select Recipient
+  let sql = `SELECT name FROM users WHERE (email = '${transactionPayload.receiver}')`;
+  pool.execute(sql, (err, recipient) => {
+    if (err) {
+      throw err;
+    } else console.log(recipient);
+    res.status(200).json({
+      Message: `You are sending '${transactionPayload.amount}' to '${recipient}'. Click Verify to Proceed`,
+    });
+  });
+});
+
+//Verify User before sending
+router.get("/verifysending", async (req, res, next) => {
+  const transactionPayload = ({
+    sender,
+    receiver,
+    amount,
+    description,
+    transaction_pin,
+  } = req.body);
+
+  //Ensure Sender has Sufficient funds
+  let sql = `FROM users
+  SELECT IF ('${transactionPayload.amount}' >= account_balance, 'sufficient', 'insufficient')
+  WHERE email = '${transactionPayload.sender}'
+  `;
+  await pool.execute(sql, (insufficient, sufficient) => {
+    if (insufficient) {
+      console.log(insufficient);
+      res
+        .status(500)
+        .json("You have Insufficient funds to perform this transaction");
+    } else if (sufficient) {
+      //Credit Receiver/Debit Sender
+      let sql = `UPDATE users SET account_balance = (account_balance - '${amount}')
+      WHERE (email = '${transactionPayload.sender}');
+      UPDATE users SET account_balance = (account_balance + '${amount}')
+      (where email = '${transactionPayload.receiver}')
+      `;
+      await pool.execute(sql, (err, status) => {
+        if (err) {
+          throw err;
+        } else console.log(status);
+        res.status(200).json({
+          Message: `You have successfully sent '${transactionPayload.amount}' to '${transactionPayload.receiver}'`,
+        });
+      });
+    }
+  });
+
+  //Withdraw to Bank Account
+  router.get("/withdraw", async (req, res, next) => {
+    const transactionPayload = ({
+      userId,
+      beneficiary,
+      w_bank_account,
+      amount,
+    } = req.body);
+
+    //Ensure User has Sufficient funds
+    let sql = `FROM users
+    SELECT IF ('${transactionPayload.amount}' >= account_balance, 'sufficient', 'insufficient')
+  WHERE user_id = '${transactionPayload.userId}'
+   
+  `;
+    await pool.execute(sql, (insufficient, sufficient) => {
+      if (insufficient) {
+        console.log(insufficient);
+        res.status(500).json("You have Insufficient funds to Withdraw");
+      } else if (sufficient) {
+        //Credit to Beneficiary account, and debit from DB
+        let sql = `UPDATE users SET account_balance = (account_balance - '${transactionPayload.amount}')
+      WHERE (user_id = '${transactionPayload.use_id}');`;
+        await pool.execute(sql, (err, status) => {
+          if (err) {
+            throw err;
+          } else console.log(status);
+          res.status(200).json({
+            Message: `You have successfully withdrawn '${transactionPayload.amount}'`,
+          });
+        });
+      }
+    });
+  });
+  /* 
+    //Verify Transaction Secret Code
+    let sql = `SELECT transaction_secret-key FROM users WHERE (email = '${transactionPayload.sender}')`;
+    await pool.execute(sql, (err, hash) => {
+      if (err) {
+        throw err;
+      } else return hash;
+    });
+    const verifification = await verifyPassword(
+      transactionPayload.transaction_pin,
+      hash
+    );
+    if ((verifification = "False")) {
+      res.status(500).json("Incorrect Transaction Secret Code");
+    } else if ((verifification = "True")) {
+      fundAccount(
+        transactionPayload.sender,
+        transactionPayload.amount,
+        transactionPayload.receiver
+      );
+    }
+  } */
 });
 
 module.exports = router;
