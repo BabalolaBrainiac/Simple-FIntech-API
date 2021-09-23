@@ -8,6 +8,7 @@ const bodyparser = require("body-parser");
 //Import Schemas for Route Usage
 const userRoutes = require("./routes/user");
 const transactionRoutes = require("./routes/transaction");
+const accRoutes = require("./routes/account");
 
 //Middlewares
 app.use(morgan("dev"));
@@ -20,6 +21,7 @@ app.use(cors());
 //Use Routes
 app.use("/users", userRoutes);
 app.use("/transaction", transactionRoutes);
+app.use("/account", accRoutes);
 
 //Default Error Handling
 app.use((req, res, next) => {

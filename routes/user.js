@@ -12,30 +12,29 @@ const pool = require("../controllers/db");
 router.post("/signup", (req, res, next) => {
   bcrypt.hash(req.body.password, 10, (err, hash) => {
     if (err) {
-      return new errors.InternalServerError("Password Error");
+      throw err;
     } else {
       const user = new User({
         user_id: new mongoose.Types.ObjectId(),
-        name: req.body.name,
         username: req.body.username,
-        email: req.body.email,
         password: hash,
-        account_id: nanoid(),
+        name: req.body.name,
+        email: req.body.email,
+        account_id: "123456789",
         withdrawal_bank: "Not set",
+        w_bank_account: "123456789",
+        beneficiaries: "",
+        transfer_secret_code: "ope",
       });
-      let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.name}', '${user.password}', '${user.name}', '${user.email}', '${user.accountn_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}');
+      let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.username}', '${user.password}', '${user.name}', '${user.email}', '${user.account_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}','${user.transfer_secret_code}' );
       `;
       pool.execute(sql, (err, result) => {
-        if ((err, result)) {
-          if (err) {
-            res.status(201).json({
-              Error: err,
-              Error_Msg: "Signup Not Successful",
-            });
-          }
+        if (err) {
+          throw err;
+        } else {
+          console.log(result);
+          res.status(200).json("User Saved to DB Successfully");
         }
-        console.log(result);
-        res.status(200).json("User Saved to DB Successfully");
       });
     }
   });

@@ -55,7 +55,7 @@ router.post("/fund", async (req, res, next) => {
 
 //Verify payment before funding user
 router.get("/verify", async (req, res, next) => {
-  const transaction_id = req.body.transaction_id;
+  const { transaction_id, user_id } = req.body;
 
   const response = await verifyPayment(transaction_id);
   //Update Transaction in DB after verification
@@ -75,9 +75,8 @@ router.get("/verify", async (req, res, next) => {
   //Fund User Account if Transaction is Successful
   if ((response.data.status = "success")) {
     let sql = `
-    UPDATE users SET users.account_balance = (users.account_balance + '${response.data.amount}') 
-    WHERE transactions.transaction_id = '${transaction_id}'
-    JOIN transactions ON transactions.user_id = users.user_id;
+    UPDATE users SET account_balance = (account_balance + '${response.data.amount}') 
+    WHERE user_id = '${user_id}'
     `;
     await pool.execute(sql, (err, result) => {
       if (err) {
@@ -95,7 +94,7 @@ router.get("/verify", async (req, res, next) => {
 });
 
 //Send Money to other users using email
-router.post("/send", (req, res, next) => {
+router.post("/send", async (req, res, next) => {
   const transactionPayload = ({ sender, receiver, amount, description } =
     req.body);
 
@@ -112,7 +111,7 @@ router.post("/send", (req, res, next) => {
 });
 
 //Verify User before sending
-router.get("/verifysending", async (req, res, next) => {
+router.get("/verifysending", (req, res, next) => {
   const transactionPayload = ({
     sender,
     receiver,
@@ -126,7 +125,7 @@ router.get("/verifysending", async (req, res, next) => {
   SELECT IF ('${transactionPayload.amount}' >= account_balance, 'sufficient', 'insufficient')
   WHERE email = '${transactionPayload.sender}'
   `;
-  await pool.execute(sql, (insufficient, sufficient) => {
+  pool.execute(sql, (insufficient, sufficient) => {
     if (insufficient) {
       console.log(insufficient);
       res
@@ -139,7 +138,7 @@ router.get("/verifysending", async (req, res, next) => {
       UPDATE users SET account_balance = (account_balance + '${amount}')
       (where email = '${transactionPayload.receiver}')
       `;
-      await pool.execute(sql, (err, status) => {
+      pool.execute(sql, (err, status) => {
         if (err) {
           throw err;
         } else console.log(status);
@@ -165,7 +164,7 @@ router.get("/verifysending", async (req, res, next) => {
   WHERE user_id = '${transactionPayload.userId}'
    
   `;
-    await pool.execute(sql, (insufficient, sufficient) => {
+    pool.execute(sql, (insufficient, sufficient) => {
       if (insufficient) {
         console.log(insufficient);
         res.status(500).json("You have Insufficient funds to Withdraw");
@@ -173,7 +172,7 @@ router.get("/verifysending", async (req, res, next) => {
         //Credit to Beneficiary account, and debit from DB
         let sql = `UPDATE users SET account_balance = (account_balance - '${transactionPayload.amount}')
       WHERE (user_id = '${transactionPayload.use_id}');`;
-        await pool.execute(sql, (err, status) => {
+        pool.execute(sql, (err, status) => {
           if (err) {
             throw err;
           } else console.log(status);

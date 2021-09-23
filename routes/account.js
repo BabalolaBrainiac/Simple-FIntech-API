@@ -7,28 +7,28 @@ const bcrypt = require("bcrypt");
 const user = require("../models/user");
 
 //Fetch User/Account Information
-router.get("/:user_id", async (req, res, next) => {
+router.get("/:user_id", (req, res, next) => {
   let id = req.body.user_id;
-  const sql = `SELECT * FROM users WHERE user_id = ${id}`;
-  await pool.execute(sql, (err, user) => {
+  const sql = `SELECT * FROM users WHERE user_id = '${id}'`;
+  pool.execute(sql, (err, user) => {
     if (err) {
-      return new errors.ResourceNotFoundError("User Not Found");
+      throw err;
     } else {
       console.log(user);
       res.status(200).json({
-          Message: 'User Successfully Retreieved',
-          User: user
+        Message: "User Successfully Retreieved",
+        User: user,
       });
     }
   });
 });
 
 //Update Withdrawal Bank
-router.post("/update", async (req, res, next) => {
+router.post("/update", (req, res, next) => {
   let { id, withdrawalbank, w_bank_account, password } = req.body;
   //Verify user Password before update
   let sql = `SELECT password FROM users WHERE user_id = ${id}`;
-  await pool.execute(sql, (err, hash) => {
+  pool.execute(sql, (err, hash) => {
     if (err) {
       throw err;
     } else {
@@ -41,7 +41,7 @@ router.post("/update", async (req, res, next) => {
           const sql = `UPDATE users set withdrawal_bank = ('${withdrawalbank}'), w_bank_account = ('${w_bank_account}')
     FROM users 
     WHERE user_id = '${id}'`;
-          await pool.execute(sql, (err, status) => {
+          pool.execute(sql, (err, status) => {
             if (err) {
               throw err;
             } else {
@@ -56,11 +56,11 @@ router.post("/update", async (req, res, next) => {
 });
 
 //Add Benficiaries to Account
-router.post("addbeneficiary", async (req, res, next) => {
-  const { Bankname, accountName, accountNumber, userId, password } = req.body;
+router.post("/addbeneficiary", (req, res, next) => {
+  const { bankName, accountName, accountNumber, userId, password } = req.body;
   //Verify user Password before adding beneficiary
-  let sql = `SELECT password FROM users WHERE user_id = ${id}`;
-  await pool.execute(sql, (err, hash) => {
+  /* let sql = `SELECT password FROM users WHERE user_id = '${userId}'`;
+  pool.execute(sql, (err, hash) => {
     if (err) {
       throw err;
     } else {
@@ -68,30 +68,25 @@ router.post("addbeneficiary", async (req, res, next) => {
         if (err) {
           console.log(err);
         } else {
-          console.log(result);
-          //Add Beneficiary
-          const sql = `INSERT INTO beneficiaries VALUES('${userId}', '${Bankname}', '${accountName}', '${accountNumber}'`;
-          await pool.execute(sql, (err, status) => {
-            if (err) {
-              throw err;
-            } else {
-              console.log(status);
-              res.status(200).json("Withdrawal Bank Successfully Updated");
-            }
-          });
-        }
-      });
+          console.log(result); */
+  //Add Beneficiary
+  const sql = `INSERT INTO beneficiaries VALUES('${userId}', '${bankName}', '${accountName}', '${accountNumber}')`;
+  pool.execute(sql, (err, status) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log(status);
+      res.status(200).json("Withdrawal Bank Successfully Updated");
     }
   });
-  next();
 });
 
 //Get List of All User Beneficiaries
-router.get("/beneficiaries", async (req, res, next) => {
+router.get("/beneficiaries", (req, res, next) => {
   const { userId } = req.body;
 
   let sql = `SELECT * FROM beneficiaries WHERE user_id = ${userId}`;
-  await pool.execute(sql, (err, list) => {
+  pool.execute(sql, (err, list) => {
     if (err) {
       console.log(err);
     } else {
@@ -104,15 +99,16 @@ router.get("/beneficiaries", async (req, res, next) => {
 });
 
 //Delete Beneficiary from Beneficiary List
-router.delete('/remove', async(err, res, next) => {
-    const {userId, accountName}
-    let sql = `REMOVE FROM beneficiaries where (user_id = '${userId}') AND account_name ='${accountName}'`
-    await pool.execute(sql, (err, list) => {
-        if (err) {
-            throw err
-        } else {
-            console.log(list)
-            res.status(200).json('Beneficiary Successfully Deleted')
-        }
-    })
-})
+router.delete("/remove", (err, res, next) => {
+  const { userId, accountName } = req.body;
+  let sql = `REMOVE FROM beneficiaries where (user_id = '${userId}') AND account_name ='${accountName}'`;
+  pool.execute(sql, (err, list) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log(list);
+      res.status(200).json("Beneficiary Successfully Deleted");
+    }
+  });
+});
+module.exports = router;
