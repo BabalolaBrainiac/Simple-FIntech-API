@@ -1,11 +1,12 @@
 const axios = require("axios");
+const config = require("../config/config");
 
 //Initialize Payments using the Paystack API
 exports.initializeTransaction = async (form) => {
   const req_options = {
     url: "https://api.paystack.co/transaction/initialize",
     headers: {
-      authorization: `Bearer ${process.env.paystack_test_key}`,
+      authorization: `Bearer ${config.Paystack_Test_Keys}`,
       "content-type": "application/json",
       "cache-control": "no-cache",
     },
@@ -15,6 +16,7 @@ exports.initializeTransaction = async (form) => {
   return new Promise(async () => {
     try {
       const req_data = await axios.request(req_options);
+      console.log(req_data);
       const { status, statusText, data } = req_data;
       return { status: status, message: statusText, data: data };
     } catch (error) {
@@ -33,23 +35,18 @@ exports.verifyPayment = async (ref) => {
     url:
       "https://api.paystack.co/transaction/verify/" + encodeURIComponent(ref),
     headers: {
-      authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      authorization: `Bearer ${config.Paystack_Test_Keys}`,
       "content-type": "application/json",
       "cache-control": "no-cache",
     },
     method: "GET",
   };
-  return new Promise(async () => {
+  return new Promise(async (resolve, reject) => {
     try {
-      const response = await axios.request(options);
-      const { status, statusText, data } = response;
-      return { status: status, message: statusText, data: data };
+      const data = await axios.request(options);
+      resolve(data);
     } catch (error) {
-      return {
-        status: error.response.status,
-        message: error.response.data.message,
-        data: {},
-      };
+      reject(error);
     }
   });
 };
