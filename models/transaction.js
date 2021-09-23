@@ -1,15 +1,16 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 //Define Transaction Schema
 const transactionSchema = new Schema({
+  transaction_id: mongoose.ObjectId,
+  amount: Number,
+  medium: String,
   userId: {
     type: Schema.Types.ObjectId,
     ref: "Users",
+    default: "Not defined",
   },
-  value: Number,
-  medium: String,
-  reference: String,
   status: {
     type: String,
     enum: [
@@ -19,7 +20,8 @@ const transactionSchema = new Schema({
     ],
     default: "Transaction Pending",
   },
+  type: String,
   date: { type: Date },
 });
 
-export default mongoose.model("Transactions", transactionSchema);
+module.exports = mongoose.model("Transaction", transactionSchema);
