@@ -25,39 +25,34 @@ router.get("/:user_id", (req, res, next) => {
 
 //Update Withdrawal Bank
 router.post("/update", (req, res, next) => {
-  let { id, withdrawalbank, w_bank_account, password } = req.body;
-  //Verify user Password before update
-  let sql = `SELECT password FROM users WHERE user_id = ${id}`;
+  let { user_id, withdrawalBank, w_bank_account, userPassword } = req.body;
+  /* //Verify user Password before update
+  let sql = `SELECT password FROM users WHERE user_id = '${user_id}'`;
   pool.execute(sql, (err, hash) => {
     if (err) {
       throw err;
     } else {
-      bcrypt.compare(password, hash, (err, result) => {
+      bcrypt.compare(userPassword, hash, (err, result) => {
         if (err) {
           console.log(err);
         } else {
-          console.log(result);
-          //Update Withdrawal Bank
-          const sql = `UPDATE users set withdrawal_bank = ('${withdrawalbank}'), w_bank_account = ('${w_bank_account}')
-    FROM users 
-    WHERE user_id = '${id}'`;
-          pool.execute(sql, (err, status) => {
-            if (err) {
-              throw err;
-            } else {
-              console.log(status);
-              res.status(200).json("Withdrawal Bank Successfully Updated");
-            }
-          });
-        }
-      });
+          console.log(result); */
+  //Update Withdrawal Bank
+  const sql = `UPDATE users set withdrawal_bank = '${withdrawalBank}', w_bank_account = '${w_bank_account}'
+            WHERE user_id = '${user_id}'`;
+  pool.execute(sql, (err, status) => {
+    if (err) {
+      throw err;
+    } else {
+      console.log(status);
+      res.status(200).json("Withdrawal Bank Successfully Updated");
     }
   });
 });
 
 //Add Benficiaries to Account
-router.post("/addbeneficiary", (req, res, next) => {
-  const { bankName, accountName, accountNumber, userId, password } = req.body;
+router.post("/addbeneficiary", async (req, res, next) => {
+  const { bankName, accountName, accountNumber, userId } = req.body;
   //Verify user Password before adding beneficiary
   /* let sql = `SELECT password FROM users WHERE user_id = '${userId}'`;
   pool.execute(sql, (err, hash) => {
@@ -85,7 +80,7 @@ router.post("/addbeneficiary", (req, res, next) => {
 router.get("/beneficiaries", (req, res, next) => {
   const { userId } = req.body;
 
-  let sql = `SELECT * FROM beneficiaries WHERE user_id = ${userId}`;
+  let sql = `SELECT * FROM beneficiaries WHERE user_id = '${userId}'`;
   pool.execute(sql, (err, list) => {
     if (err) {
       console.log(err);
@@ -111,4 +106,5 @@ router.delete("/remove", (err, res, next) => {
     }
   });
 });
+
 module.exports = router;

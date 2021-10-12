@@ -1,8 +1,16 @@
 const express = require("express");
 const app = express();
+require("dotenv").config();
 const errors = require("restify-errors");
 const morgan = require("morgan");
 const cors = require("cors");
+const expressSession = require("express-session")({
+  secret: process.env.expressSecret,
+  saveUninitialized: false,
+  resave: false,
+});
+const passport = require("passport");
+
 const bodyparser = require("body-parser");
 
 //Import Schemas for Route Usage
@@ -14,6 +22,9 @@ const accRoutes = require("./routes/account");
 app.use(morgan("dev"));
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
+app.use(expressSession);
+app.use(passport.initialize());
+app.use(passport.session());
 
 //Handle CORS
 app.use(cors());

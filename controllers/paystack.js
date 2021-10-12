@@ -6,7 +6,7 @@ exports.initializeTransaction = async (form) => {
   const req_options = {
     url: "https://api.paystack.co/transaction/initialize",
     headers: {
-      authorization: `Bearer ${config.Paystack_Test_Keys}`,
+      authorization: `Bearer ${process.env.paystack_test_key}`,
       "content-type": "application/json",
       "cache-control": "no-cache",
     },
@@ -35,7 +35,7 @@ exports.verifyPayment = async (ref) => {
     url:
       "https://api.paystack.co/transaction/verify/" + encodeURIComponent(ref),
     headers: {
-      authorization: `Bearer ${config.Paystack_Test_Keys}`,
+      authorization: `Bearer ${process.env.paystack_test_key}`,
       "content-type": "application/json",
       "cache-control": "no-cache",
     },
