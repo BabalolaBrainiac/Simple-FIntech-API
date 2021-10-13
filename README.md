@@ -17,6 +17,7 @@ Start server using the npm start command after installing all app dependencies. 
 Create a copy by cloning repo to your local machine. Make sure to have Node installed on your machine prior
 
 ```
+gh repo clone BabalolaBrainiac/Simple-FIntech-API
 ```
 
 ### Installing
