@@ -3,45 +3,53 @@ const router = express.Router();
 const User = require("../models/user");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const { nanoid } = require("nanoid");
 const pool = require("../controllers/db");
 const jwt = require("jsonwebtoken");
+const idGen = require("idgen");
+const { avoidDuplicate } = require("../controllers/avoidDuplicate");
 
 //Signup New User
-router.post("/signup", (req, res, next) => {
-  bcrypt.hash(req.body.password, 10, (err, hash) => {
-    if (err) {
-      throw err;
+router.post("/signup", async (req, res) => {
+  let sql = `SELECT email FROM users WHERE (email = '${req.body.email}')`;
+  await pool.execute(sql, (err, userEmail) => {
+    if (userEmail.length >= 1) {
+      res.status(401).json("Email exists");
     } else {
-      const user = new User({
-        user_id: new mongoose.Types.ObjectId(),
-        username: req.body.username,
-        password: hash,
-        name: req.body.name,
-        email: req.body.email,
-        account_id: nanoid(10),
-        withdrawal_bank: "Not set",
-        w_bank_account: "Not Set",
-        beneficiaries: "No Beneficiaries Added",
-        transfer_secret_code: req.body.transfer_secret_code,
-      });
-      let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.username}', '${user.password}', '${user.name}', '${user.email}', '${user.account_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}','${user.transfer_secret_code}' );
-      `;
-      pool.execute(sql, (err, result) => {
+      bcrypt.hash(req.body.password, 10, (err, hash) => {
         if (err) {
           throw err;
         } else {
-          console.log(result);
-          res.status(200).json("User Saved to DB Successfully");
+          const user = new User({
+            user_id: new mongoose.Types.ObjectId(),
+            username: req.body.username,
+            password: hash,
+            name: req.body.name,
+            email: req.body.email,
+            account_id: idGen(10),
+            withdrawal_bank: "Not set",
+            w_bank_account: "Not Set",
+            beneficiaries: "No Beneficiaries Added",
+            transfer_secret_code: "Not Set",
+          });
+          let sql = `INSERT INTO users VALUES('${user.user_id}', '${user.username}', '${user.password}', '${user.name}', '${user.email}', '${user.account_id}', '${user.account_balance}', '${user.withdrawal_bank}', '${user.w_bank_account}', '${user.beneficiaries}','${user.transfer_secret_code}' );
+          `;
+          pool.execute(sql, (err, result) => {
+            if (err) {
+              throw err;
+            } else {
+              console.log(result);
+              res.status(200).json("User Saved to DB Successfully");
+            }
+          });
         }
       });
     }
   });
 });
 
-router.get("/login", (req, res, next) => {
+router.get("/login", async(req, res, next) => {
   let sql = `SELECT email FROM users WHERE (email = '${req.body.email}')`;
-  pool.execute(sql, (err, userEmail) => {
+  await pool.execute(sql, (err, userEmail) => {
     if (err) {
       res.status(400).json("Email does not exist!");
     } else {
@@ -62,7 +70,7 @@ router.get("/login", (req, res, next) => {
                     email: userEmail,
                     password: userPassword,
                   },
-                  process.env.JWT_Key,
+                  config.JWT_Secret,
                   {
                     expiresIn: "1hr",
                   }
